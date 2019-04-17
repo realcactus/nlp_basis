@@ -4,46 +4,46 @@
    File Name：     input_parsing
    Description :
    Author :       xszhou
-   date：          2019/4/15
+   date：          2019/4/17
 -------------------------------------------------
 """
 __author__ = 'xszhou'
 
-'''
-输入时一个个句子
-词汇表是1000个词汇（包括unk和结束符）
-因此需要把句子中的词转化为词汇表中的索引
-'''
-
-
-import collections
-from operator import itemgetter
-
-# 这个itemgetter是为了按照counter的值进行排序，实际上用lambda也行
-# 另外对于Counter的使用，Counter是dict的子类
+# 将原始输入文本转化为编号序列，编号即词在词典中的序号
 
 RAW_DATA = 'ptb/data/ptb.train.txt'
 # 数据样例
 #  a <unk> <unk> said this is an old story
-VOCAB_OUTPUT = 'ptb/out/ptb.vocab'
+VOCAB_FILE = 'ptb/out/ptb.vocab'
 
-counter = collections.Counter()
-with open(RAW_DATA, 'r', encoding='utf-8') as f:
-    for line in f:
-        # 原始数据一行就是一条数据，是用空格隔开的单词序列
-        for word in line.strip().split():
-            counter[word] += 1
+# 将单词替换为单词编号后的输出文件
+OUTPUT_DATA = 'ptb/out/ptb.train'
 
-# 按照词频顺序对单词进行排序
-sorted_word_cnt = sorted(counter.items(),
-                         key=itemgetter(1),
-                         reverse=True)
-# 从字典中取出第一个值，也就是词本身
-sorted_words = [x[0] for x in sorted_word_cnt]
-# <EOS>符号表示句子结束符
-sorted_words = ['<EOS>'] + sorted_words
 
-# 写入词典
-with open(VOCAB_OUTPUT, 'w', encoding='utf-8') as file_out:
-    for word in sorted_words:
-        file_out.write(word + '\n')
+# 低频词 返回<unk>的索引
+def get_id(word, word_to_id):
+    if word in word_to_id:
+        return word_to_id[word]
+    else:
+        return word_to_id['<unk>']
+
+
+if __name__ == '__main__':
+    # 读取词汇表，建立词汇到单词编号的映射
+    with open(VOCAB_FILE, 'r', encoding='utf-8') as f_vocab:
+        vocab = [x.strip() for x in f_vocab.readlines()]
+    # 这里用了这个zip函数
+    # python3中zip返回的是一个对象，需要手动转化为list，当然这里不用list()也行，因为zip对象也是iterable的
+    word_to_id = {w: v for (w, v) in list(zip(vocab, range(len(vocab))))}
+
+    fin = open(RAW_DATA, 'r', encoding='utf-8')
+    fout = open(OUTPUT_DATA, 'w', encoding='utf-8')
+    for line in fin.readlines():
+        # 单词结尾加上<EOS>
+        words = line.strip().split() + ['<EOS>']
+        # 用序号替换单词本身
+        # 这里加换行只是因为将这个中间结果输出到文件中 有换行比较清晰
+        out_line = ''.join([str(get_id(w, word_to_id))+' ' for w in words]) + '\n'
+        fout.write(out_line)
+    fin.close()
+    fout.close()
